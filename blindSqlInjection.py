@@ -2,6 +2,7 @@
 
 import re
 import requests
+from urllib.parse import parse_qsl
 
 # declare functions.
 #.fetch element from the list
@@ -9,21 +10,18 @@ import requests
 #├── convert -> which format is needed. (currently avaible dict)
 #├── elements -> header list
 #└── pattern -> which pattern should looked for
-def get_list_element(elements:list, pattern:str, convert=None):
-    response = { "succeed":  None }
+def get_list_element(elements:list, convert=None, key=None):
+    response = { "succeed":  None, "headers": {} }
     
     for element in elements:
-         response['match'] = re.search(pattern, element, re.IGNORECASE)
-         
-         if (response['match']):
-             response['match'] = response['match'].string
-             response['succeed'] = True
-         
-         if (convert == 'dict' and response['succeed']):
-             key_value = response['match'].split(":",1)
-             response['key'] = key_value[1].lstrip()
-             break
-
+        try:
+         if (convert == 'dict' and not re.search('POST|GET',element)):
+             key_value = element.split(":",1)
+             response[key][key_value[0].lower()] = key_value[1].lstrip()
+        except (KeyError):
+             raise ValueError(f"get_list_element failed at the value pair {key_value}")
+    
+    response['succeed'] = True
     return response
 
 #.fetch methode from the list
@@ -55,21 +53,24 @@ with open(f"{request_path}","r") as file:
     request_conetnt['body'] = file_content[-1]
     
     # get url and http methode
-    response = get_list_element(elements=request_conetnt['header'], pattern='referer', convert='dict')
+    response = get_list_element(elements=request_conetnt['header'], convert='dict', key='headers')
     if ( not response['succeed']):
         raise ValueError("Url can't be fetched from the provided file!.")
 
-    # set url and methode
-    request_conetnt['url'] = response['key']
-    request_conetnt['methode'] = extract_http_methode(request_conetnt['header'])
 
+    # set url and methode
+    request_conetnt['url'] = response['headers']['referer']
+    request_conetnt['methode'] = extract_http_methode(request_conetnt['header']).get('methode')
+    request_conetnt['headers'] = response['headers']
+    request_conetnt['data'] = dict(parse_qsl(request_conetnt['body'].rstrip()))
+    
     # request
     response = requests.request(
             method=str(request_conetnt['methode']),
             url=str(request_conetnt['url']),
-            headers=request_conetnt.get('header', {}),
-            data=request_conetnt.get('body', None),
-            verify=False
+            headers=request_conetnt.get('headers'),
+            data=request_conetnt['data'],
+            verify=False,
             )
 
     print(response.text)
