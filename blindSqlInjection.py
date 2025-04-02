@@ -3,6 +3,8 @@
 import re
 import requests
 from urllib.parse import parse_qsl
+import BlindSqlInjection
+import Invoke_SqlInjection
 
 # declare functions.
 #.fetch element from the list
@@ -12,7 +14,7 @@ from urllib.parse import parse_qsl
 #└── pattern -> which pattern should looked for
 def get_list_element(elements:list, convert=None, key=None):
     response = { "succeed":  None, "headers": {} }
-    
+
     for element in elements:
         try:
          if (convert == 'dict' and not re.search('POST|GET',element)):
@@ -20,7 +22,7 @@ def get_list_element(elements:list, convert=None, key=None):
              response[key][key_value[0].lower()] = key_value[1].lstrip()
         except (KeyError):
              raise ValueError(f"get_list_element failed at the value pair {key_value}")
-    
+
     response['succeed'] = True
     return response
 
@@ -30,11 +32,11 @@ def get_list_element(elements:list, convert=None, key=None):
 def extract_http_methode(headers):
     if ( not headers ):
         raise ValueError("The 'header' key is missing in the request dictionary.")
-    
+
     response = { "succeed": None }
 
     try:
-        response['methode'] = request_conetnt['header'][0].split()[0]
+        response['methode'] = request_content['header'][0].split()[0]
         response['succeed'] = True
         return response
     except (KeyError, IndexError):
@@ -48,30 +50,29 @@ with open(f"{request_path}","r") as file:
     raw_file_content = file.read()
     file_content = raw_file_content.split('\n\n',1)
 
-    request_conetnt = {}
-    request_conetnt['header'] = file_content[0].split('\n')
-    request_conetnt['body'] = file_content[-1]
-    
+    request_content = {}
+    request_content['header'] = file_content[0].split('\n')
+    request_content['body'] = file_content[-1]
+
     # get url and http methode
-    response = get_list_element(elements=request_conetnt['header'], convert='dict', key='headers')
+    response = get_list_element(elements=request_content['header'], convert='dict', key='headers')
     if ( not response['succeed']):
         raise ValueError("Url can't be fetched from the provided file!.")
 
 
     # set url and methode
-    request_conetnt['url'] = response['headers']['referer']
-    request_conetnt['methode'] = extract_http_methode(request_conetnt['header']).get('methode')
-    request_conetnt['headers'] = response['headers']
-    request_conetnt['data'] = dict(parse_qsl(request_conetnt['body'].rstrip()))
-    
-    # request
-    response = requests.request(
-            method=str(request_conetnt['methode']),
-            url=str(request_conetnt['url']),
-            headers=request_conetnt.get('headers'),
-            data=request_conetnt['data'],
-            verify=False,
-            )
+    request_content['url'] = response['headers']['referer']
+    request_content['methode'] = extract_http_methode(request_content['header']).get('methode')
+    request_content['headers'] = response['headers']
+    #request_content['data'] = dict(parse_qsl(request_content['body'].rstrip()))
+    request_content['data'] = request_content['body'].rstrip()
 
-    print(response.text)
 
+    # get mount of databases.
+
+#Invoke_SqlInjection Class
+
+
+
+invoke_SqlInjection = Invoke_SqlInjection.Invoke_SqlInjection({"fs":"33870"},request_content)
+invoke_SqlInjection.assemble()
